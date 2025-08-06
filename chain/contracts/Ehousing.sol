@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: MIT
+// Compatible with OpenZeppelin Contracts ^5.0.0
+pragma solidity ^0.8.27;
+
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {ERC721Burnable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+struct HouseRentalInfo{
+    uint dateFrom;
+    uint dateTo;
+}
+
+contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
+    uint256 private _nextTokenId;
+    mapping(uint256 => HouseRentalInfo) private _rentals;
+
+    constructor(address initialOwner)
+        ERC721("Ehousing", "EHSW3")
+        Ownable(initialOwner)
+    {}
+
+    function createHouse(string memory uri)
+        public
+        onlyOwner
+        returns (uint256)
+    {
+        uint256 tokenId = _nextTokenId++;
+        _setTokenURI(tokenId, uri);
+        return tokenId;
+    }
+
+    function mintHouse(address to, uint256 tokenId, uint dateFrom, uint dateTo)
+        public
+        onlyOwner
+        returns (uint256)
+    {
+        _safeMint(to, tokenId);
+        _rentals[tokenId] = HouseRentalInfo(dateFrom, dateTo);
+        return tokenId;
+    }
+
+    function getRentalInfo(uint256 tokenId) public view returns(HouseRentalInfo memory){
+        // checks if the rental is still valid
+        return _rentals[tokenId];
+    }
+
+    function isValidRental(uint256 tokenId) public view returns(bool){
+        return block.timestamp >= _rentals[tokenId].dateFrom && block.timestamp <= _rentals[tokenId].dateTo;
+    }
+
+    modifier _isValidRental(uint256 tokenId){
+        require(isValidRental(tokenId), "Rental not valid anymore");
+        _;
+    }
+
+    modifier _isInvalidRental(uint256 tokenId){
+        require(!isValidRental(tokenId), "Rental is still valid");
+        _;
+    }
+
+    function retakeOwnership(uint256 tokenId) public onlyOwner _isInvalidRental(tokenId){
+        // takes back the token representing the rental from the temporary owner
+
+    }
+
+    function retakeOwnershipForced(uint256 tokenId) public onlyOwner{
+        // takes back forcibly the token representing the rental from the temporary owner eg when rental is cancelled
+
+    }
+
+    // The following functions are overrides required by Solidity.
+
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
+        return super.tokenURI(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+}

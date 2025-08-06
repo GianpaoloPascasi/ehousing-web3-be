@@ -1,5 +1,5 @@
 {
-  "name": "hardhat-project",
+  "name": "ehousing-web3",
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.1.0",
     "@nomicfoundation/hardhat-toolbox-viem": "^4.1.0",

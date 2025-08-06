@@ -7,7 +7,7 @@ import {ERC721Burnable} from "@openzeppelin/contracts/token/ERC721/extensions/ER
 import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-struct HouseRentalInfo{
+struct HouseRentalInfo {
     uint dateFrom;
     uint dateTo;
 }
@@ -16,77 +16,72 @@ contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
     uint256 private _nextTokenId;
     mapping(uint256 => HouseRentalInfo) private _rentals;
 
-    constructor(address initialOwner)
-        ERC721("Ehousing", "EHSW3")
-        Ownable(initialOwner)
-    {}
+    constructor(
+        address initialOwner
+    ) ERC721("Ehousing", "EHSW3") Ownable(initialOwner) {}
 
-    function createHouse(string memory uri)
-        public
-        onlyOwner
-        returns (uint256)
-    {
+    function createHouse(string memory uri) public onlyOwner returns (uint256) {
         uint256 tokenId = _nextTokenId++;
         _setTokenURI(tokenId, uri);
         return tokenId;
     }
 
-    function mintHouse(address to, uint256 tokenId, uint dateFrom, uint dateTo)
-        public
-        onlyOwner
-        returns (uint256)
-    {
+    function mintHouse(
+        address to,
+        uint256 tokenId,
+        uint dateFrom,
+        uint dateTo
+    ) public onlyOwner returns (uint256) {
         _safeMint(to, tokenId);
         _rentals[tokenId] = HouseRentalInfo(dateFrom, dateTo);
         return tokenId;
     }
 
-    function getRentalInfo(uint256 tokenId) public view returns(HouseRentalInfo memory){
-        // checks if the rental is still valid
+    function getRentalInfo(
+        uint256 tokenId
+    ) public view returns (HouseRentalInfo memory) {
         return _rentals[tokenId];
     }
 
-    function isValidRental(uint256 tokenId) public view returns(bool){
-        return block.timestamp >= _rentals[tokenId].dateFrom && block.timestamp <= _rentals[tokenId].dateTo;
+    function isValidRental(uint256 tokenId) public view returns (bool) {
+        return
+            block.timestamp >= _rentals[tokenId].dateFrom &&
+            block.timestamp <= _rentals[tokenId].dateTo;
     }
 
-    modifier _isValidRental(uint256 tokenId){
+    modifier _isValidRental(uint256 tokenId) {
         require(isValidRental(tokenId), "Rental not valid anymore");
         _;
     }
 
-    modifier _isInvalidRental(uint256 tokenId){
+    modifier _isInvalidRental(uint256 tokenId) {
         require(!isValidRental(tokenId), "Rental is still valid");
         _;
     }
 
-    function retakeOwnership(uint256 tokenId) public onlyOwner _isInvalidRental(tokenId){
-        // takes back the token representing the rental from the temporary owner
-
+    // takes back the token representing the rental from the temporary owner
+    function retakeOwnership(
+        uint256 tokenId
+    ) public onlyOwner _isInvalidRental(tokenId) {
+        _safeTransfer(ownerOf(tokenId), msg.sender, tokenId);
     }
 
-    function retakeOwnershipForced(uint256 tokenId) public onlyOwner{
-        // takes back forcibly the token representing the rental from the temporary owner eg when rental is cancelled
-
+    // takes back forcibly the token representing the rental from the temporary owner eg when rental is cancelled
+    function retakeOwnershipForced(uint256 tokenId) public onlyOwner {
+        _safeTransfer(ownerOf(tokenId), msg.sender, tokenId);
     }
 
     // The following functions are overrides required by Solidity.
 
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override(ERC721, ERC721URIStorage)
-        returns (string memory)
-    {
+    function tokenURI(
+        uint256 tokenId
+    ) public view override(ERC721, ERC721URIStorage) returns (string memory) {
         return super.tokenURI(tokenId);
     }
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(ERC721, ERC721URIStorage)
-        returns (bool)
-    {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override(ERC721, ERC721URIStorage) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 }

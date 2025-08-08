@@ -158,7 +158,36 @@ describe("Ehousing", function () {
         creation.houseTokenId!,
       ]);
       expect(getAddress(currentOwner)).to.be.not.eq(getAddress(initialOwner));
-      expect(getAddress(currentOwner)).to.be.eq(getAddress(owner.account.address));
+      expect(getAddress(currentOwner)).to.be.eq(
+        getAddress(owner.account.address)
+      );
+      expect(eHousing.write.giveBack([creation.houseTokenId])).to.be.rejected;
+    });
+
+    it("Should throw if owners accidentally gives back ownership", async () => {
+      const { eHousing, creation } = await loadFixture(assignHouseFixture);
+      expect(eHousing.write.giveBack([creation.houseTokenId])).to.be.rejected;
+    });
+
+    it("Should throw if someone calls onlyOwner retakeOwnership and retakeOnwershipForced", async () => {
+      const { eHousing, creation, thirdAccount } = await loadFixture(
+        assignHouseFixture
+      );
+      await expect(
+        eHousing.write.giveBack([creation.houseTokenId], {
+          account: thirdAccount.account,
+        })
+      ).to.be.eventually.rejectedWith("You are not renting this home!");
+      await expect(
+        eHousing.write.retakeOwnership([creation.houseTokenId], {
+          account: thirdAccount.account,
+        })
+      ).eventually.to.be.rejectedWith("OwnableUnauthorizedAccount");
+      await expect(
+        eHousing.write.retakeOwnershipForced([creation.houseTokenId], {
+          account: thirdAccount.account,
+        })
+      ).eventually.to.be.rejectedWith("OwnableUnauthorizedAccount");
     });
   });
 

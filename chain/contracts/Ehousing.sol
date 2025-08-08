@@ -19,12 +19,15 @@ contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
     uint256 private _nextTokenId;
     mapping(uint256 => HouseRentalInfo) private _rentals;
     uint public test;
+    address public _initialOwner;
 
     constructor(
         address initialOwner
-    ) ERC721("Ehousing", "EHSW3") Ownable(initialOwner) {}
+    ) ERC721("Ehousing", "EHSW3") Ownable(initialOwner) {
+        _initialOwner = initialOwner;
+    }
 
-    function createHouse(string memory uri) public onlyOwner returns(uint256){
+    function createHouse(string memory uri) public onlyOwner returns (uint256) {
         uint256 tokenId = _nextTokenId++;
         _setTokenURI(tokenId, uri);
         emit HouseCreated(tokenId, uri);
@@ -36,7 +39,7 @@ contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
         uint256 tokenId,
         uint dateFrom,
         uint dateTo
-    ) public onlyOwner{
+    ) public onlyOwner {
         _safeMint(to, tokenId);
         _rentals[tokenId] = HouseRentalInfo(dateFrom, dateTo);
         emit HouseMinted(tokenId, to);
@@ -74,6 +77,19 @@ contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
     // takes back forcibly the token representing the rental from the temporary owner eg when rental is cancelled
     function retakeOwnershipForced(uint256 tokenId) public onlyOwner {
         _safeTransfer(ownerOf(tokenId), msg.sender, tokenId);
+    }
+
+    modifier onlyRentalOwner(uint256 tokenId) {
+        require(
+            super.ownerOf(tokenId) == msg.sender,
+            "You are not renting this home!"
+        );
+        require(msg.sender != _initialOwner, "You are the contract owner, use retakeOwnership or retakeOwnershipForced!");
+        _;
+    }
+
+    function giveBack(uint256 tokenId) public onlyRentalOwner(tokenId) {
+        _safeTransfer(msg.sender, _initialOwner, tokenId);
     }
 
     // The following functions are overrides required by Solidity.

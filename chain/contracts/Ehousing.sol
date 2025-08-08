@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts ^5.0.0
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.28;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Burnable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
@@ -12,17 +12,22 @@ struct HouseRentalInfo {
     uint dateTo;
 }
 
+event HouseCreated(uint256 tokenId, string uri);
+event HouseMinted(uint256 tokenId, address tempOwner);
+
 contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
     uint256 private _nextTokenId;
     mapping(uint256 => HouseRentalInfo) private _rentals;
+    uint public test;
 
     constructor(
         address initialOwner
     ) ERC721("Ehousing", "EHSW3") Ownable(initialOwner) {}
 
-    function createHouse(string memory uri) public onlyOwner returns (uint256) {
+    function createHouse(string memory uri) public onlyOwner returns(uint256){
         uint256 tokenId = _nextTokenId++;
         _setTokenURI(tokenId, uri);
+        emit HouseCreated(tokenId, uri);
         return tokenId;
     }
 
@@ -31,10 +36,10 @@ contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
         uint256 tokenId,
         uint dateFrom,
         uint dateTo
-    ) public onlyOwner returns (uint256) {
+    ) public onlyOwner{
         _safeMint(to, tokenId);
         _rentals[tokenId] = HouseRentalInfo(dateFrom, dateTo);
-        return tokenId;
+        emit HouseMinted(tokenId, to);
     }
 
     function getRentalInfo(

@@ -1,24 +1,20 @@
 import { expect } from "chai";
-import {
-  time,
-  loadFixture,
-} from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
+import { loadFixture } from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
 import hre from "hardhat";
-import { fromHex, fromRlp, getAddress } from "viem";
+import { fromHex, getAddress, parseEventLogs } from "viem";
 
 describe("Ehousing", function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
-  async function deployOneYearLockFixture() {
+  async function deployFixture() {
     // Contracts are deployed using the first signer/account by default
     const [owner, otherAccount] = await hre.viem.getWalletClients();
-    console.log(owner.account);
+
+    const publicClient = await hre.viem.getPublicClient();
     const eHousing = await hre.viem.deployContract("Ehousing", [
       owner.account.address,
     ]);
-
-    const publicClient = await hre.viem.getPublicClient();
 
     return {
       eHousing,
@@ -30,7 +26,7 @@ describe("Ehousing", function () {
 
   describe("Deployment", function () {
     it("Should set the right owner", async function () {
-      const { eHousing, owner } = await loadFixture(deployOneYearLockFixture);
+      const { eHousing, owner } = await loadFixture(deployFixture);
 
       expect(await eHousing.read.owner()).to.equal(
         getAddress(owner.account.address)
@@ -38,34 +34,46 @@ describe("Ehousing", function () {
     });
 
     it("Should create an house", async function () {
-      const { eHousing, owner } = await loadFixture(deployOneYearLockFixture);
+      const { eHousing, owner, publicClient } = await loadFixture(
+        deployFixture
+      );
 
-      const tokenId = await eHousing.write.createHouse([
+      const txHash = await eHousing.write.createHouse([
         "https://myuri.com/asdasd",
       ]);
-      expect(tokenId).to.equal(1);
-
-      const ownerInContract = await eHousing.read.ownerOf([tokenId]);
-      expect(getAddress(ownerInContract)).to.be.equal(
-        getAddress(owner.account.address)
-      );
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: txHash,
+      });
+      const tokenId = parseEventLogs({
+        logs: receipt.logs,
+        abi: eHousing.abi,
+      }).find((e) => e.eventName == "HouseCreated")?.args.tokenId;
+      expect(tokenId).to.be.equal(BigInt(0));
     });
 
     it("Should assign an house", async function () {
-      const { eHousing, otherAccount } = await loadFixture(
-        deployOneYearLockFixture
+      const { eHousing, otherAccount, publicClient } = await loadFixture(
+        deployFixture
       );
-      const tokenId = fromHex(
-        await eHousing.write.createHouse(["https://myuri.com/asdasd"]),
-        "bigint"
-      );
+      const txHash = await eHousing.write.createHouse([
+        "https://myuri.com/asdasd",
+      ]);
+
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: txHash,
+      });
+      const tokenId = parseEventLogs({
+        logs: receipt.logs,
+        abi: eHousing.abi,
+      }).find((e) => e.eventName == "HouseCreated")?.args.tokenId;
+      console.log(tokenId);
       await eHousing.write.mintHouse([
         otherAccount.account.address,
-        tokenId,
+        tokenId!,
         BigInt(Date.now()),
         BigInt(Date.now() + 100000000),
       ]);
-      const owner = await eHousing.read.ownerOf([tokenId]);
+      const owner = await eHousing.read.ownerOf([tokenId!]);
       expect(getAddress(owner)).to.be.equal(
         getAddress(otherAccount.account.address)
       );
@@ -75,7 +83,7 @@ describe("Ehousing", function () {
   // describe("Withdrawals", function () {
   //   describe("Validations", function () {
   //     it("Should revert with the right error if called too soon", async function () {
-  //       const { lock } = await loadFixture(deployOneYearLockFixture);
+  //       const { lock } = await loadFixture(deployFixture);
 
   //       await expect(lock.write.withdraw()).to.be.rejectedWith(
   //         "You can't withdraw yet"
@@ -84,7 +92,7 @@ describe("Ehousing", function () {
 
   //     it("Should revert with the right error if called from another account", async function () {
   //       const { lock, unlockTime, otherAccount } = await loadFixture(
-  //         deployOneYearLockFixture
+  //         deployFixture
   //       );
 
   //       // We can increase the time in Hardhat Network
@@ -103,7 +111,7 @@ describe("Ehousing", function () {
 
   //     it("Shouldn't fail if the unlockTime has arrived and the owner calls it", async function () {
   //       const { lock, unlockTime } = await loadFixture(
-  //         deployOneYearLockFixture
+  //         deployFixture
   //       );
 
   //       // Transactions are sent using the first signer by default
@@ -116,7 +124,7 @@ describe("Ehousing", function () {
   //   describe("Events", function () {
   //     it("Should emit an event on withdrawals", async function () {
   //       const { lock, unlockTime, lockedAmount, publicClient } =
-  //         await loadFixture(deployOneYearLockFixture);
+  //         await loadFixture(deployFixture);
 
   //       await time.increaseTo(unlockTime);
 

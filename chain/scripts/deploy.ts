@@ -1,8 +1,7 @@
 import { getAddress } from "viem";
 import * as dotenv from "dotenv";
-import { account, walletClient } from "./config";
+import { account, publicClient, walletClient } from "./config";
 import * as Ehousing from "../artifacts/contracts/Ehousing.sol/Ehousing.json";
-import { sepolia } from "viem/chains";
 dotenv.config();
 
 async function main() {
@@ -12,7 +11,11 @@ async function main() {
     bytecode: Ehousing.bytecode as `0x${string}`,
     args: [getAddress(process.env.DEPLOYER_ADDRESS)],
   });
-  console.log("Transaction hash" + tx);
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+
+  console.log(receipt.contractAddress);
+  console.log("^^^^^^^^^^^ CONTRACT ADDRESS ^^^^^^^^^^^");
+  process.exit(0);
 }
 
 main();

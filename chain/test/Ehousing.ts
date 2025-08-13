@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
 import hre from "hardhat";
-import { fromHex, getAddress, parseEventLogs } from "viem";
+import { getAddress, parseEther, parseEventLogs } from "viem";
 
 describe("Ehousing", function () {
   // We define a fixture to reuse the same setup in every test.
@@ -46,17 +46,41 @@ describe("Ehousing", function () {
     };
   }
 
-  async function assignHouseFixture() {
+  async function giveHouseFixture() {
     const aggregatedFixture = await loadFixture(createHouseFixture);
     const { eHousing, otherAccount, publicClient, creation } =
       aggregatedFixture;
 
-    const txHash = await eHousing.write.mintHouse([
+    const txHash = await eHousing.write.giveHouse([
       otherAccount.account.address,
       creation.houseTokenId,
       BigInt(Date.now()),
       BigInt(Date.now() + 100000000),
+      parseEther("0.0001"),
     ]);
+
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash: txHash,
+    });
+
+    return {
+      ...aggregatedFixture,
+      giving: {
+        receipt,
+        txHash,
+      },
+    };
+  }
+
+  async function payAndAssignHouseFixture() {
+    const aggregatedFixture = await loadFixture(giveHouseFixture);
+    const { eHousing, otherAccount, publicClient, creation } =
+      aggregatedFixture;
+
+    const txHash = await eHousing.write.renewRent([creation.houseTokenId], {
+      value: parseEther("0.0002"),
+      account: otherAccount.account,
+    });
 
     const receipt = await publicClient.waitForTransactionReceipt({
       hash: txHash,
@@ -96,16 +120,44 @@ describe("Ehousing", function () {
       expect(tokenId).to.be.equal(BigInt(0));
     });
 
-    it("Should assign an house", async function () {
-      const { eHousing, otherAccount, publicClient, creation } =
+    it("Should give an house", async function () {
+      const { eHousing, otherAccount, publicClient, creation, owner } =
         await loadFixture(createHouseFixture);
 
-      const txHash = await eHousing.write.mintHouse([
+      const txHash = await eHousing.write.giveHouse([
         otherAccount.account.address,
         creation.houseTokenId,
         BigInt(Date.now()),
         BigInt(Date.now() + 100000000),
+        parseEther("0.0001"),
       ]);
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: txHash,
+      });
+      const args = parseEventLogs({
+        logs: receipt.logs,
+        abi: eHousing.abi,
+      }).find((e) => e.eventName == "HouseGiven")?.args;
+      expect(args?.tokenId).to.not.be.undefined;
+      expect(args?.tokenId).to.be.equal(creation.houseTokenId);
+      expect(getAddress(args!.tempOwner)).to.be.equal(
+        getAddress(otherAccount.account.address)
+      );
+
+      let ownerFromCt = await eHousing.read.ownerOf([creation.houseTokenId]);
+      expect(getAddress(ownerFromCt)).to.be.equal(
+        getAddress(owner.account.address)
+      );
+    });
+
+    it("Should assign an house paying the rent", async function () {
+      const { eHousing, otherAccount, publicClient, creation } =
+        await loadFixture(giveHouseFixture);
+
+      const txHash = await eHousing.write.renewRent([creation.houseTokenId], {
+        value: parseEther("0.0002"),
+        account: otherAccount.account
+      });
       const receipt = await publicClient.waitForTransactionReceipt({
         hash: txHash,
       });
@@ -125,9 +177,28 @@ describe("Ehousing", function () {
       );
     });
 
+    it("Should not assign an house when not paying full collateral at first time", async function () {
+      const { eHousing, otherAccount, creation } =
+        await loadFixture(giveHouseFixture);
+
+      await expect(
+        eHousing.write.renewRent([creation.houseTokenId], {
+          value: parseEther("0.0001"),
+          account: otherAccount.account
+        })
+      ).eventually.to.be.rejectedWith("InvalidRentValue");
+
+      await expect(
+        eHousing.write.renewRent([creation.houseTokenId], {
+          value: parseEther("0.0003"),
+          account: otherAccount.account
+        })
+      ).eventually.to.be.rejectedWith("InvalidRentValue");
+    });
+
     it("Should retake ownership", async () => {
       const { eHousing, creation, publicClient, owner } = await loadFixture(
-        assignHouseFixture
+        payAndAssignHouseFixture
       );
       const initialOwner = await eHousing.read.ownerOf([
         creation.houseTokenId!,
@@ -146,7 +217,7 @@ describe("Ehousing", function () {
 
     it("Should give back ownership", async () => {
       const { eHousing, publicClient, creation, otherAccount, owner } =
-        await loadFixture(assignHouseFixture);
+        await loadFixture(payAndAssignHouseFixture);
       const initialOwner = await eHousing.read.ownerOf([
         creation.houseTokenId!,
       ]);
@@ -165,13 +236,13 @@ describe("Ehousing", function () {
     });
 
     it("Should throw if owners accidentally gives back ownership", async () => {
-      const { eHousing, creation } = await loadFixture(assignHouseFixture);
+      const { eHousing, creation } = await loadFixture(payAndAssignHouseFixture);
       expect(eHousing.write.giveBack([creation.houseTokenId])).to.be.rejected;
     });
 
     it("Should throw if someone calls onlyOwner retakeOwnership and retakeOnwershipForced", async () => {
       const { eHousing, creation, thirdAccount } = await loadFixture(
-        assignHouseFixture
+        payAndAssignHouseFixture
       );
       await expect(
         eHousing.write.giveBack([creation.houseTokenId], {

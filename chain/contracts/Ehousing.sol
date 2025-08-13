@@ -10,10 +10,18 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 struct HouseRentalInfo {
     uint dateFrom;
     uint dateTo;
+    uint lastTimePaid;
+    uint rentValue;
+    address tempOwner;
 }
 
 event HouseCreated(uint256 tokenId, string uri);
+event HouseGiven(uint256 tokenId,  address tempOwner);
 event HouseMinted(uint256 tokenId, address tempOwner);
+event RentPaid(uint256 tokenId, address tempOwner, uint value);
+
+error InvalidRentValue();
+error RentExpired();
 
 contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
     uint256 private _nextTokenId;
@@ -30,19 +38,51 @@ contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
     function createHouse(string memory uri) public onlyOwner returns (uint256) {
         uint256 tokenId = _nextTokenId++;
         _setTokenURI(tokenId, uri);
+        _safeMint(msg.sender, tokenId);
         emit HouseCreated(tokenId, uri);
         return tokenId;
     }
 
-    function mintHouse(
+    // enables house to be owned by someone but it is still not minted by him
+    function giveHouse(
         address to,
         uint256 tokenId,
         uint dateFrom,
-        uint dateTo
+        uint dateTo,
+        uint rentValue
     ) public onlyOwner {
-        _safeMint(to, tokenId);
-        _rentals[tokenId] = HouseRentalInfo(dateFrom, dateTo);
-        emit HouseMinted(tokenId, to);
+        _rentals[tokenId] = HouseRentalInfo(
+            dateFrom,
+            dateTo,
+            0,
+            rentValue,
+            to
+        );
+        emit HouseGiven(tokenId, to);
+    }
+
+    function renewRent(uint256 tokenId) public payable {
+        require(
+            msg.sender == _rentals[tokenId].tempOwner,
+            "You are not enabled to retrieve or pay this rent"
+        );
+        bool validRental = block.timestamp <= _rentals[tokenId].dateTo;
+        if (!validRental) {
+            _safeTransfer(ownerOf(tokenId), _initialOwner, tokenId);
+            revert RentExpired();
+        }
+        if (_rentals[tokenId].lastTimePaid == 0) {
+            require(
+                msg.value == _rentals[tokenId].rentValue * 2,
+                InvalidRentValue()
+            );
+            _safeTransfer(ownerOf(tokenId), msg.sender, tokenId);
+            _rentals[tokenId].lastTimePaid = block.timestamp;
+            emit HouseMinted(tokenId, msg.sender);
+        } else {
+            require(msg.value == _rentals[tokenId].rentValue, InvalidRentValue());
+            emit RentPaid(tokenId, msg.sender, msg.value);
+        }
     }
 
     function getRentalInfo(
@@ -84,7 +124,10 @@ contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
             super.ownerOf(tokenId) == msg.sender,
             "You are not renting this home!"
         );
-        require(msg.sender != _initialOwner, "You are the contract owner, use retakeOwnership or retakeOwnershipForced!");
+        require(
+            msg.sender != _initialOwner,
+            "You are the contract owner, use retakeOwnership or retakeOwnershipForced!"
+        );
         _;
     }
 
@@ -93,7 +136,6 @@ contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
     }
 
     // The following functions are overrides required by Solidity.
-
     function tokenURI(
         uint256 tokenId
     ) public view override(ERC721, ERC721URIStorage) returns (string memory) {

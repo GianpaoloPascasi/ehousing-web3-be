@@ -13,4 +13,5 @@ To deploy your contract:
 - in the .env add the following variables
     - DEPLOYER_PRIVATE_KEY=your private key
     - WSS_API_URL=your alchemy websocket url
-- run `node scripts/deploy.ts`
+- run `npm run deploy`
+- it should appear a message showing the just deployed contract address.

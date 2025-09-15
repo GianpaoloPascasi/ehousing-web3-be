@@ -1,13 +1,16 @@
-# Sample Hardhat Project
+# Ehousing web3 Ethereum interaction
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
+## Prerequisites
+I will use experimental native TS parsing from node 22.18, make sure to install this node version using your preferred node version manager.
+Then run `npm i` inside the directory.
 
-Try running some of the following tasks:
+## Test
+To run tests just run in your cmd `npx hardhat test`
 
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.ts
-```
+## Deploy
+To deploy your contract:
+- create a .env file in the directory
+- in the .env add the following variables
+    - DEPLOYER_PRIVATE_KEY=your private key
+    - WSS_API_URL=your alchemy websocket url
+- run `node scripts/deploy.ts`

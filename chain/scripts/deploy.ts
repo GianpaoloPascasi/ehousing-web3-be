@@ -1,14 +1,18 @@
 import { getAddress } from "viem";
 import * as dotenv from "dotenv";
-import { account, publicClient, walletClient } from "./config";
-import * as Ehousing from "../artifacts/contracts/Ehousing.sol/Ehousing.json";
+import { account, publicClient, walletClient } from "./config.ts";
+import { readFileSync } from "fs";
 dotenv.config();
+
+const { abi, bytecode } = JSON.parse(
+  readFileSync(`./artifacts/contracts/Ehousing.sol/Ehousing.json`).toString()
+);
 
 async function main() {
   const tx = await walletClient.deployContract({
-    abi: Ehousing.abi,
+    abi: abi,
     account: account,
-    bytecode: Ehousing.bytecode as `0x${string}`,
+    bytecode: bytecode as `0x${string}`,
     args: [getAddress(process.env.DEPLOYER_ADDRESS)],
   });
   const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });

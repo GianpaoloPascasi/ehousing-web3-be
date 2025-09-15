@@ -1,5 +1,8 @@
 {
   "name": "ehousing-web3",
+  "scripts": {
+    "deploy": "node scripts/deploy.ts"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.1.0",
     "@nomicfoundation/hardhat-toolbox-viem": "^4.1.0",

@@ -26,7 +26,6 @@ error RentExpired();
 contract Ehousing is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
     uint256 private _nextTokenId;
     mapping(uint256 => HouseRentalInfo) private _rentals;
-    uint public test;
     address public _initialOwner;
 
     constructor(

@@ -1,0 +1,14 @@
+services:
+  nodeapp:
+      image: node:22
+      env_file: 
+        - ../.env
+      working_dir: /app
+      volumes:
+        - ../.:/app
+        - ~/.aws:/root/.aws
+      command: bash -c "npm i && npm run build && npm run start:prod"
+      ports:
+        - "3000:3000"
+      depends_on:
+        - postgres

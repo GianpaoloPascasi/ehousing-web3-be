@@ -1,0 +1,14 @@
+services:
+  nodeapp:
+    image: node:22
+    env_file:
+      - ../.env.test.docker
+    working_dir: /app
+    volumes:
+      - ../.:/app
+      - ~/.aws:/root/.aws
+    command: bash -c "npm i && npm run test:e2e"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres

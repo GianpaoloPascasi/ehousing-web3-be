@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17-bullseye
+    restart: always
+    ports:
+        - "${DATABASE_PORT}:${DATABASE_PORT}"
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      # - pgdata: /var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+# volumes:
+#   pgdata: /var/lib/postgresql/data

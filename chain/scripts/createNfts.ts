@@ -19,7 +19,7 @@ async function main() {
       abi: abi,
       address: process.env.CONTRACT_ADDRESS,
       functionName: "createHouse",
-      args: [`https://pascasi.it/web3/house_{i}.json`],
+      args: [`https://pascasi.it/web3/house_${i}.json`],
     });
     const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
 
